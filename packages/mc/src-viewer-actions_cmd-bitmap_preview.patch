@@ -1,0 +1,79 @@
+--- mc-4.8.33/src/viewer/actions_cmd.c	2025-01-23 10:33:38.000000000 +0100
++++ mc-4.8.33.mod/src/viewer/actions_cmd.c	2026-03-20 08:25:34.220798693 +0100
+@@ -80,6 +80,49 @@
+ 
+ /*** file scope variables ************************************************************************/
+ 
++static void
++mcview_run_bitmap_preview (WView *view, const char *file, gboolean clear)
++{
++    const char *preview_cmd;
++
++    if (!mcview_is_in_panel (view))
++        return;
++
++    preview_cmd = g_getenv ("MC_BITMAP_PREVIEW");
++    if (preview_cmd == NULL || *preview_cmd == '\0')
++        return;
++
++    if (view->data_area.cols <= 0 || view->data_area.lines <= 0)
++        return;
++
++    {
++        char *quoted_cmd;
++        char *command_line;
++
++        quoted_cmd = g_shell_quote (preview_cmd);
++        if (clear || file == NULL || *file == '\0')
++            command_line =
++                g_strdup_printf ("%s --clear --row %d --col %d --width %d --height %d 2>/dev/null",
++                                 quoted_cmd, view->data_area.y + 1, view->data_area.x + 1,
++                                 view->data_area.cols, view->data_area.lines);
++        else
++        {
++            char *quoted_file;
++
++            quoted_file = g_shell_quote (file);
++            command_line =
++                g_strdup_printf ("%s --row %d --col %d --width %d --height %d --file %s 2>/dev/null",
++                                 quoted_cmd, view->data_area.y + 1, view->data_area.x + 1,
++                                 view->data_area.cols, view->data_area.lines, quoted_file);
++            g_free (quoted_file);
++        }
++
++        g_spawn_command_line_async (command_line, NULL);
++        g_free (quoted_cmd);
++        g_free (command_line);
++    }
++}
++
+ /* --------------------------------------------------------------------------------------------- */
+ /*** file scope functions ************************************************************************/
+ /* --------------------------------------------------------------------------------------------- */
+@@ -161,6 +204,7 @@
+     mcview_done (view);
+     mcview_init (view);
+     mcview_load (view, 0, fe->fname->str, 0, 0, 0);
++    mcview_run_bitmap_preview (view, fe->fname->str, FALSE);
+     mcview_display (view);
+ }
+ 
+@@ -650,6 +694,9 @@
+ 
+     case MSG_DRAW:
+         mcview_display (view);
++        if (mcview_is_in_panel (view))
++            mcview_run_bitmap_preview (view, view->filename_vpath != NULL
++                                       ? vfs_path_as_str (view->filename_vpath) : NULL, FALSE);
+         return MSG_HANDLED;
+ 
+     case MSG_CURSOR:
+@@ -706,6 +753,8 @@
+ 
+             if (mc_global.midnight_shutdown)
+                 mcview_ok_to_quit (view);
++            else
++                mcview_run_bitmap_preview (view, NULL, TRUE);
+         }
+         mcview_done (view);
+         mcview_remove_ext_script (view);

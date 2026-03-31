@@ -1,0 +1,126 @@
+#!/data/data/com.termux/files/usr/bin/sh
+
+set -eu
+
+FONT_DIR="${HOME}/.termux"
+FONT_FILE="${FONT_DIR}/font.ttf"
+FONT_MODES_DIR="${FONT_DIR}/font-modes"
+
+reload_settings() {
+	if command -v termux-reload-settings >/dev/null 2>&1; then
+		termux-reload-settings >/dev/null 2>&1 || true
+	fi
+}
+
+ensure_font_dir() {
+	mkdir -p "${FONT_DIR}"
+}
+
+list_modes() {
+	if [ ! -d "${FONT_MODES_DIR}" ]; then
+		echo "No bundled font modes found at ${FONT_MODES_DIR}"
+		return 0
+	fi
+
+	for font in "${FONT_MODES_DIR}"/*.ttf "${FONT_MODES_DIR}"/*.otf; do
+		[ -f "${font}" ] || continue
+		basename "${font}" | sed -e 's/\.[^.]*$//'
+	done | sort
+}
+
+current_mode() {
+	if [ -f "${FONT_FILE}" ]; then
+		echo "override:${FONT_FILE}"
+	else
+		echo "normal"
+	fi
+}
+
+set_normal() {
+	rm -f "${FONT_FILE}"
+	reload_settings
+	echo "Switched to normal mode (bundled default font)."
+}
+
+set_fun() {
+	if [ $# -ne 1 ]; then
+		echo "Usage: termux-font-mode fun <name>" >&2
+		exit 1
+	fi
+
+	mode_name="$1"
+	src_ttf="${FONT_MODES_DIR}/${mode_name}.ttf"
+	src_otf="${FONT_MODES_DIR}/${mode_name}.otf"
+
+	if [ -f "${src_ttf}" ]; then
+		src="${src_ttf}"
+	elif [ -f "${src_otf}" ]; then
+		src="${src_otf}"
+	else
+		echo "Font mode '${mode_name}' not found in ${FONT_MODES_DIR}" >&2
+		exit 1
+	fi
+
+	ensure_font_dir
+	cp -f "${src}" "${FONT_FILE}"
+	reload_settings
+	echo "Switched to fun mode '${mode_name}'."
+}
+
+set_path() {
+	if [ $# -ne 1 ]; then
+		echo "Usage: termux-font-mode path /path/to/font.ttf" >&2
+		exit 1
+	fi
+
+	src="$1"
+	if [ ! -f "${src}" ]; then
+		echo "Font file not found: ${src}" >&2
+		exit 1
+	fi
+
+	ensure_font_dir
+	cp -f "${src}" "${FONT_FILE}"
+	reload_settings
+	echo "Installed override font from ${src}."
+}
+
+usage() {
+	cat <<'EOF'
+Usage:
+  termux-font-mode list
+  termux-font-mode current
+  termux-font-mode normal
+  termux-font-mode fun <name>
+  termux-font-mode path /path/to/font.ttf
+EOF
+}
+
+cmd="${1:-}"
+
+case "${cmd}" in
+	list)
+		shift
+		list_modes "$@"
+		;;
+	current)
+		shift
+		current_mode "$@"
+		;;
+	normal)
+		shift
+		set_normal "$@"
+		;;
+	fun)
+		shift
+		set_fun "$@"
+		;;
+	path)
+		shift
+		set_path "$@"
+		;;
+	*)
+		usage >&2
+		exit 1
+		;;
+esac

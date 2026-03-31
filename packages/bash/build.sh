@@ -34,6 +34,9 @@ TERMUX_PKG_CONFFILES="etc/bash.bashrc etc/profile"
 TERMUX_PKG_RM_AFTER_INSTALL="share/man/man1/bashbug.1 bin/bashbug"
 
 termux_step_pre_configure() {
+	export CC_FOR_BUILD="${CC_FOR_BUILD:-gcc}"
+	export CFLAGS_FOR_BUILD="-std=gnu17 -g -DCROSS_COMPILING"
+
 	local _MAIN_VERSION="${TERMUX_PKG_VERSION%.*}" _PATCH_VERSION="${TERMUX_PKG_VERSION##*.}"
 	(( _PATCH_VERSION == 0 )) && return
 	local PATCH_NUM PATCHFILE

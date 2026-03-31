@@ -1,5 +1,8 @@
 # Termux packages
 
+> [!NOTE]
+> This fork is part of a personal hobby-project collection. It is shared because it works for my setup, but there is no promise of regular maintenance, fast support, or long-term compatibility updates.
+
 ![GitHub repo size](https://img.shields.io/github/repo-size/termux/termux-packages)
 [![Packages last build status](https://github.com/termux/termux-packages/actions/workflows/packages.yml/badge.svg?branch=master)](https://github.com/termux/termux-packages/actions)
 [![Docker image status](https://github.com/termux/termux-packages/workflows/Docker%20image/badge.svg)](https://hub.docker.com/r/termux/package-builder)
@@ -18,6 +21,11 @@ This project contains scripts and patches to build packages for the [Termux](htt
 Android application.
 
 Quick how-to about Termux package management is available at [Package Management](https://github.com/termux/termux-packages/wiki/Package-Management). It also has info on how to fix **`repository is under maintenance or down`** errors when running `apt` or `pkg` commands.
+
+This fork is paired with my custom `termux-app` fork, including app-side terminal work around Sixel and OSC 1337/iTerm2-style inline image support that traces back through the Termux Monet ecosystem:
+- https://github.com/Termux-Monet/termux-monet
+- https://github.com/HardcodedCat/termux-monet
+- https://github.com/MatanZ/termux-app/tree/sixel2
 
 ## Contributing
 

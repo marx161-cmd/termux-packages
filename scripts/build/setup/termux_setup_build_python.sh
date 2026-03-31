@@ -27,6 +27,8 @@ termux_setup_build_python() {
 		local _PYTHON_SRCURL
 		local _PYTHON_SHA256
 		local _PYTHON_FOLDER
+		local _HOST_BOOTSTRAP_CC
+		local _HOST_BOOTSTRAP_CXX
 		_PYTHON_VERSION="$(. "$TERMUX_SCRIPTDIR/packages/python/build.sh"; echo "$TERMUX_PKG_VERSION")"
 		_PYTHON_SRCURL="$(. "$TERMUX_SCRIPTDIR/packages/python/build.sh"; echo "$TERMUX_PKG_SRCURL")"
 		_PYTHON_SHA256="$(. "$TERMUX_SCRIPTDIR/packages/python/build.sh"; echo "$TERMUX_PKG_SHA256")"
@@ -37,23 +39,28 @@ termux_setup_build_python() {
 		fi
 		export TERMUX_BUILD_PYTHON_DIR=$_PYTHON_FOLDER
 
-		if [[ ! -d "$_PYTHON_FOLDER" ]]; then
+		if [[ ! -x "$_PYTHON_FOLDER/host-build-prefix/bin/python3" && ! -x "$_PYTHON_FOLDER/host-build-prefix/bin/python" ]]; then
 			[[ "${CI-false}" == "true" ]] && echo "::group::INFO: [${FUNCNAME[0]}] Building minimal host Python $_PYTHON_VERSION" || :
 
-			termux_download \
-				"$_PYTHON_SRCURL" "python-$_PYTHON_VERSION.tar.xz" "$_PYTHON_SHA256"
-			mkdir "$_PYTHON_FOLDER"
-			tar \
-				--extract \
-				--strip-components=1 \
-				-C "$_PYTHON_FOLDER" \
-				-f "python-$_PYTHON_VERSION.tar.xz"
+			if [[ ! -d "$_PYTHON_FOLDER" ]]; then
+				termux_download \
+					"$_PYTHON_SRCURL" "python-$_PYTHON_VERSION.tar.xz" "$_PYTHON_SHA256"
+				mkdir "$_PYTHON_FOLDER"
+				tar \
+					--extract \
+					--strip-components=1 \
+					-C "$_PYTHON_FOLDER" \
+					-f "python-$_PYTHON_VERSION.tar.xz"
+			fi
 			cd "$_PYTHON_FOLDER"
 
-			for f in "$TERMUX_SCRIPTDIR"/packages/python/0009-fix-ctypes-util-find_library.patch; do
-				echo "[${FUNCNAME[0]}]: Applying $(basename "$f")"
-				cat "$f" | sed -e "s|@@TERMUX_PKG_API_LEVEL@@|${TERMUX_PKG_API_LEVEL}|g" | patch --silent -p1
-			done
+			if [[ ! -f "$_PYTHON_FOLDER/.termux-host-python-patched" ]]; then
+				for f in "$TERMUX_SCRIPTDIR"/packages/python/0009-fix-ctypes-util-find_library.patch; do
+					echo "[${FUNCNAME[0]}]: Applying $(basename "$f")"
+					cat "$f" | sed -e "s|@@TERMUX_PKG_API_LEVEL@@|${TERMUX_PKG_API_LEVEL}|g" | patch --silent -p1
+				done
+				touch "$_PYTHON_FOLDER/.termux-host-python-patched"
+			fi
 
 			# Perform a hostbuild of python. We are kind of doing a minimal build, which
 			# may break some stuff that rely on an extended python release.
@@ -70,11 +77,17 @@ termux_setup_build_python() {
 			# hardcoded to "$(CC) -shared" and "$(CXX) -shared"
 			# Whoever that person is needs to stop writing build scripts and instead
 			# question his impact on his mere existence on the world
+			_HOST_BOOTSTRAP_CC="$(command -v "clang-${TERMUX_HOST_LLVM_MAJOR_VERSION}" || command -v clang)"
+			_HOST_BOOTSTRAP_CXX="$(command -v "clang++-${TERMUX_HOST_LLVM_MAJOR_VERSION}" || command -v clang++)"
+			if [[ -z "$_HOST_BOOTSTRAP_CC" || -z "$_HOST_BOOTSTRAP_CXX" ]]; then
+				termux_error_exit "No suitable host clang/clang++ toolchain found for python bootstrap build."
+			fi
+			rm -rf host-build host-build-prefix
 			mkdir host-build/
 			cd host-build/ && \
 			env -i \
-				CC="clang-${TERMUX_HOST_LLVM_MAJOR_VERSION} -fuse-ld=lld" \
-				CXX="clang++-${TERMUX_HOST_LLVM_MAJOR_VERSION} -fuse-ld=lld" \
+				CC="$_HOST_BOOTSTRAP_CC -fuse-ld=lld" \
+				CXX="$_HOST_BOOTSTRAP_CXX -fuse-ld=lld" \
 				LDFLAGS="-Wl,-rpath=$_PYTHON_FOLDER/host-build-prefix/lib" \
 				PATH="/usr/bin" \
 				../configure \

@@ -4,10 +4,10 @@ TERMUX_PKG_LICENSE="GPL-3.0"
 TERMUX_PKG_MAINTAINER="@termux"
 # Please align version with `ffplay` package.
 TERMUX_PKG_VERSION="8.0.1"
-TERMUX_PKG_REVISION=5
+TERMUX_PKG_REVISION=7
 TERMUX_PKG_SRCURL=https://www.ffmpeg.org/releases/ffmpeg-${TERMUX_PKG_VERSION}.tar.xz
 TERMUX_PKG_SHA256=05ee0b03119b45c0bdb4df654b96802e909e0a752f72e4fe3794f487229e5a41
-TERMUX_PKG_DEPENDS="fontconfig, freetype, fribidi, game-music-emu, glslang, harfbuzz, libaom, libandroid-glob, libandroid-stub, libass, libbluray, libbs2b, libbz2, libdav1d, libiconv, liblzma, libmp3lame, libopencore-amr, libopenmpt, libopus, libplacebo, librav1e, libsoxr, libsrt, libssh, libtheora, libv4l, libvidstab, libvmaf, libvo-amrwbenc, libvorbis, libvpx, libwebp, libx264, libx265, libxml2, libzimg, libzmq, littlecms, ocl-icd, openssl, rubberband, svt-av1, vulkan-icd, xvidcore, zlib"
+TERMUX_PKG_DEPENDS="fontconfig, freetype, fribidi, game-music-emu, glslang, harfbuzz, libaom, libandroid-glob, libandroid-stub, libass, libbluray, libbs2b, libbz2, libdav1d, libiconv, liblzma, libmp3lame, libopencore-amr, libopenmpt, libopus, libplacebo, librav1e, libsoxr, libsrt, libssh, libtheora, libv4l, libvidstab, libvmaf, libvo-amrwbenc, libvorbis, libvpx, libwebp, libx264, libx265, libxml2, libzimg, libzmq, littlecms, ocl-icd, openjpeg, openssl, rubberband, svt-av1, vapoursynth, vulkan-icd, xvidcore, zlib"
 TERMUX_PKG_BUILD_DEPENDS="opencl-headers, vulkan-headers"
 TERMUX_PKG_CONFLICTS="libav"
 TERMUX_PKG_BREAKS="ffmpeg-dev"
@@ -31,6 +31,13 @@ termux_step_pre_configure() {
 			termux_error_exit "SOVERSION guard check failed for libav${lib}.so. expected ${so_version}"
 		fi
 	done
+
+	if [[ "$TERMUX_ARCH" == "aarch64" ]]; then
+		# Keep tuning conservative and device-specific: stable ARMv8.4-A target,
+		# but avoid more aggressive math-model changes in the same revision.
+		CFLAGS+=" -O2 -march=armv8.4-a"
+		CXXFLAGS+=" -O2 -march=armv8.4-a"
+	fi
 }
 
 termux_step_configure() {
@@ -100,6 +107,7 @@ termux_step_configure() {
 		--enable-libopencore-amrnb \
 		--enable-libopencore-amrwb \
 		--enable-libopenmpt \
+		--enable-libopenjpeg \
 		--enable-libopus \
 		--enable-libplacebo \
 		--enable-librav1e \
@@ -122,6 +130,7 @@ termux_step_configure() {
 		--enable-libxvid \
 		--enable-libzimg \
 		--enable-libzmq \
+		--enable-vapoursynth \
 		--enable-mediacodec \
 		--enable-opencl \
 		--enable-openssl \

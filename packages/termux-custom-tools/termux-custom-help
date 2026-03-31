@@ -1,0 +1,34 @@
+#!/data/data/com.termux/files/usr/bin/sh
+
+cat <<'EOF'
+Custom Termux Build
+
+Fonts
+  Built-in default: Space Mono
+  Override file: ~/.termux/font.ttf
+  Bundled font modes: ~/.termux/font-modes/
+
+Font commands
+  termux-font-mode list
+  termux-font-mode current
+  termux-font-mode normal
+  termux-font-mode fun <name>
+  termux-font-mode path /path/to/font.ttf
+
+Bundled fun fonts
+  iosevka-term
+  hack
+  jetbrains-mono
+  monaspace-xenon
+  ubuntu-mono
+  atomic-age
+  aliens-cows
+
+Terminal image support
+  sixel
+  OSC 1337 inline images
+
+Related custom pieces
+  patched mc can live in the same custom repo
+  bitmap-commander helpers are repo/package candidates too
+EOF

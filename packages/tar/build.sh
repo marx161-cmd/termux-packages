@@ -22,6 +22,14 @@ TERMUX_PKG_EXTRA_CONFIGURE_ARGS+=" --with-selinux"
 termux_step_pre_configure() {
 	CPPFLAGS+=" -D__USE_FORTIFY_LEVEL=0"
 	LDFLAGS+=" -landroid-glob"
+	LDFLAGS+=" -liconv"
+	# Some host extract/update paths leave a generated Makefile.am newer than its
+	# shipped Makefile.in, which makes make try to rerun automake with the host
+	# version. Keep the distributed autotools files authoritative.
+	while IFS= read -r makefile_in; do
+		local makefile_am="${makefile_in%.in}.am"
+		[ -f "$makefile_am" ] && touch -r "$makefile_in" "$makefile_am"
+	done < <(find "$TERMUX_PKG_SRCDIR" -name Makefile.in)
 	# https://android.googlesource.com/platform/bionic/+/master/docs/32-bit-abi.md#is-32_bit-on-lp32-y2038
 	if [ $TERMUX_ARCH_BITS = 32 ]; then
 		TERMUX_PKG_EXTRA_CONFIGURE_ARGS+=" --disable-year2038"

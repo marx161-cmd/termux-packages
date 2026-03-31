@@ -72,5 +72,19 @@ termux_step_pre_configure() {
 		32) TERMUX_PKG_EXTRA_CONFIGURE_ARGS+=" --disable-year2038";;
 	esac
 
-	LDFLAGS+=" -landroid-posix-semaphore"
+	LDFLAGS+=" -landroid-posix-semaphore -landroid-glob"
+
+	# Avoid host automake regeneration when extracted/generated autotools
+	# inputs get skewed timestamps relative to shipped Makefile.in files.
+	while IFS= read -r makefile_in; do
+		local makefile_am="${makefile_in%.in}.am"
+		[ -f "$makefile_am" ] && touch -r "$makefile_in" "$makefile_am"
+	done < <(find "$TERMUX_PKG_SRCDIR" -name Makefile.in)
+
+	local top_makefile_in="$TERMUX_PKG_SRCDIR/Makefile.in"
+	if [ -f "$top_makefile_in" ]; then
+		find "$TERMUX_PKG_SRCDIR" \
+			\( -name 'Makefile.am' -o -name 'Makemodule.am' -o -path '*/m4/*.m4' -o -name 'configure.ac' -o -name 'aclocal.m4' \) \
+			-exec touch -r "$top_makefile_in" {} +
+	fi
 }

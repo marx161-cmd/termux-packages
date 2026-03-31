@@ -23,6 +23,7 @@ TERMUX_PKG_RECOMMENDS="ed, dos2unix, inetutils, net-tools, patch, unzip"
 
 termux_step_pre_configure() {
 	autoreconf -vfi
+	sed -i'' -E 's| doc/Makefile||' configure.ac
 }
 
 termux_step_post_make_install() {

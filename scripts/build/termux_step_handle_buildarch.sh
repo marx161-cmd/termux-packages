@@ -1,8 +1,9 @@
 termux_step_handle_buildarch() {
 	[ "$TERMUX_ON_DEVICE_BUILD" = "true" ] && return
 
-	# If $TERMUX_PREFIX already exists, it may have been built for a different arch
-	local TERMUX_ARCH_FILE=/data/TERMUX_ARCH
+	# If $TERMUX_PREFIX already exists, it may have been built for a different arch.
+	# On non-Android build hosts, /data may be unavailable or not writable.
+	local TERMUX_ARCH_FILE="${TERMUX_BUILD_ARCH_FILE:-${TERMUX_TOPDIR}/TERMUX_ARCH}"
 	if [ -f "${TERMUX_ARCH_FILE}" ]; then
 		local TERMUX_PREVIOUS_ARCH
 		TERMUX_PREVIOUS_ARCH=$(cat $TERMUX_ARCH_FILE)
@@ -30,5 +31,6 @@ termux_step_handle_buildarch() {
 	fi
 
 	# Keep track of current arch we are building for.
+	mkdir -p "$(dirname "$TERMUX_ARCH_FILE")"
 	echo "$TERMUX_ARCH" > $TERMUX_ARCH_FILE
 }
