@@ -20,5 +20,5 @@ termux_step_post_make_install() {
 	# We are using Ubuntu's host python for installing the package which may be of
 	# different major version. Python bytecode isn't compatible across versions.
 	# So get rid of it
-	rm -r "$TERMUX_PREFIX/lib/python3.13/site-packages/xcbgen/__pycache__/"
+	rm -rf "$TERMUX_PREFIX/lib/python3.14/site-packages/xcbgen/__pycache__/" 2>/dev/null || true
 }
