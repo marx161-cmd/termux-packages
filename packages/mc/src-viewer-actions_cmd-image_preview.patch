@@ -1,0 +1,141 @@
+--- mc-4.8.33/src/viewer/actions_cmd.c	2025-01-23 10:33:38.000000000 +0100
++++ mc-4.8.33.mod/src/viewer/actions_cmd.c	2026-10-02 21:52:26.216136376 +0200
+@@ -81,6 +81,115 @@
+ /*** file scope variables ************************************************************************/
+ 
+ /* --------------------------------------------------------------------------------------------- */
++/*** file scope functions (image preview helpers) ***********************************************/
++/* --------------------------------------------------------------------------------------------- */
++
++/*
++ * Panel image preview: render the selected image to plain (monochrome) ASCII
++ * via the external pipeline and hand the text to the built-in viewer, which
++ * lays it out inside the panel. Nothing is painted over ncurses directly.
++ */
++static gboolean
++mcview_bc_is_image (const char *path)
++{
++    static const char *const exts[] = {
++        "png", "jpg", "jpeg", "bmp", "gif", "tiff", "tif", "webp", NULL
++    };
++    const char *dot;
++    int i;
++
++    if (path == NULL)
++        return FALSE;
++
++    dot = g_strrstr (path, ".");
++    if (dot == NULL || dot[1] == '\0')
++        return FALSE;
++
++    for (i = 0; exts[i] != NULL; i++)
++        if (g_ascii_strcasecmp (dot + 1, exts[i]) == 0)
++            return TRUE;
++
++    return FALSE;
++}
++
++static char *
++mcview_bc_render_ascii (const char *path, int cols, int lines)
++{
++    char *argv[13];
++    char *pipeline, *out = NULL, *wbuf, *hbuf;
++    GError *error = NULL;
++    const char *env;
++    int i = 0;
++
++    if (path == NULL || cols <= 0 || lines <= 0)
++        return NULL;
++
++    env = g_getenv ("BC_ASCII_ART");
++    pipeline = (env != NULL && *env != '\0')
++        ? g_strdup (env)
++        : g_build_filename (g_get_home_dir (),
++                            ".local/share/bitmap-commander/ASCII/ascii-art.py", (char *) NULL);
++
++    if (!g_file_test (pipeline, G_FILE_TEST_IS_REGULAR))
++    {
++        g_free (pipeline);
++        return NULL;
++    }
++
++    wbuf = g_strdup_printf ("%d", cols);
++    hbuf = g_strdup_printf ("%d", lines);
++
++    argv[i++] = (char *) "python3";
++    argv[i++] = pipeline;
++    argv[i++] = (char *) path;
++    argv[i++] = (char *) "--stdout";
++    argv[i++] = (char *) "--format";
++    argv[i++] = (char *) "mono";
++    argv[i++] = (char *) "--charset";
++    argv[i++] = (char *) "detailed";
++    argv[i++] = (char *) "--width";
++    argv[i++] = wbuf;
++    argv[i++] = (char *) "--max-height";
++    argv[i++] = hbuf;
++    argv[i] = NULL;
++
++    if (!g_spawn_sync (NULL, argv, NULL, G_SPAWN_SEARCH_PATH | G_SPAWN_STDERR_TO_DEV_NULL,
++                       NULL, NULL, &out, NULL, NULL, &error))
++    {
++        if (error != NULL)
++            g_error_free (error);
++        out = NULL;
++    }
++
++    g_free (wbuf);
++    g_free (hbuf);
++    g_free (pipeline);
++    return out;
++}
++
++static char *
++mcview_bc_ascii_cached (const char *path, int cols, int lines)
++{
++    static char *cache_key = NULL;
++    static char *cache_art = NULL;
++    char *key, *art;
++
++    key = g_strdup_printf ("%s|%d|%d", path, cols, lines);
++    if (cache_key != NULL && g_strcmp0 (cache_key, key) == 0)
++    {
++        g_free (key);
++        return cache_art != NULL ? g_strdup (cache_art) : NULL;
++    }
++
++    art = mcview_bc_render_ascii (path, cols, lines);
++    g_free (cache_key);
++    g_free (cache_art);
++    cache_key = key;
++    cache_art = art != NULL ? g_strdup (art) : NULL;
++    return art;
++}
++
++/* --------------------------------------------------------------------------------------------- */
+ /*** file scope functions ************************************************************************/
+ /* --------------------------------------------------------------------------------------------- */
+ 
+@@ -161,6 +270,22 @@
+     mcview_done (view);
+     mcview_init (view);
+     mcview_load (view, 0, fe->fname->str, 0, 0, 0);
++
++    if (mcview_bc_is_image (fe->fname->str))
++    {
++        char *art = mcview_bc_ascii_cached (fe->fname->str,
++                                            view->data_area.cols, view->data_area.lines);
++        if (art != NULL && *art != '\0')
++        {
++            mcview_close_datasource (view);
++            mcview_set_datasource_string (view, art);
++            g_free (art);
++            view->dpy_start = 0;
++            view->dpy_wrap_dirty = TRUE;
++            view->force_max = -1;
++        }
++    }
++
+     mcview_display (view);
+ }
+ 
